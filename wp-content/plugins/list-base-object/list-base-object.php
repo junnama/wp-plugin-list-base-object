@@ -321,7 +321,7 @@ class ListBaseObject extends WP_List_Table {
     public $_edit_html      = '';
     public $_page_message   = '';
     public $_error          = '';
-    protected $per_page     = 100;
+    public $per_page        = 100;
     protected $str_len      = 45;
     public $textdomain      = 'list-base-object';
     public $permission      = 'activate_plugins';
