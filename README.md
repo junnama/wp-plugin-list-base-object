@@ -7,7 +7,7 @@ This plugin provides the function to add table and show list and edit screen to 
 
 ##  Screenshot
 
-<div style="text-align:center"><img alt="list screen's screenshot" src="Screenshot.png" width="500" height="246" /></div>
+<div style="text-align:center"><img alt="list screen's screenshot" src="Screenshot.png" width="500" /></div>
 
 ##  Custom Class\(es\)
 

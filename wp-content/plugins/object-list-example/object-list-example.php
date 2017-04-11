@@ -14,7 +14,7 @@ require_once( ABSPATH . 'wp-content/plugins/list-base-object/list-base-object.ph
 class ObjectListExample extends ListBaseObject {
     public $plugin_id    = 'Object List Example';
     public $plugin_key   = 'objectlistexample';   // Uniqkey for upgrade table
-    public $version      = 1.1;                   // Version for upgrade table
+    public $version      = 1.2;                   // Version for upgrade table
     public $singular     = 'Contact Info';        // Object label
     public $plural       = 'Contact Info';        // Object label plural
     public $_table       = 'contact_info';        // Database table name

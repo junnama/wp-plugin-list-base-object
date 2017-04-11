@@ -41,13 +41,18 @@ class ListBaseObjectInit {
                     $options[] = $key;
                 }
             }
+            $paging = $_REQUEST[ $_table.'-object-per-page' ];
+            if ( $paging ) {
+                $paging = (int) $paging;
+                update_option( "${_page}-paging-${user_id}", $paging );
+            }
             update_option( "${_page}-disp_opt-${user_id}", implode( ',', $options ) );
         }
         $singular = $objectTable->_translate( $objectTable->singular );
         $plural = $objectTable->_translate( $objectTable->plural );
         $action = $objectTable->current_action();
         if ( $action && ( ( $action == 'edit' ) || ( $action == 'save' ) ) ) {
-            if (! $_REQUEST[ $objectTable->_table ] ) {
+            if (! $_REQUEST[ $_table ] ) {
                 $page_title = $objectTable->_translate( 'Add New %s', $singular );
             } else {
                 $page_title = $objectTable->_translate( 'Edit %s', $singular );
@@ -56,8 +61,7 @@ class ListBaseObjectInit {
             $page_title = $objectTable->_translate( 'List of %s', $plural );
         }
         $this->page_title = $page_title;
-        $prefix = $objectTable->_table;
-        $menu_function_name = $prefix.'_add_menu_items';
+        $menu_function_name = $_table . '_add_menu_items';
         $permission = $objectTable->permission;
         $icon_url = null;
         if ( $objectTable->icon_url ) {
@@ -65,11 +69,11 @@ class ListBaseObjectInit {
         }
         if ( $objectTable->menu_type == 'object' ) {
             add_object_page( $page_title, $singular,
-            $permission, $prefix.'_list_objects', array( $this, 'class_render_list_page' ),
+            $permission, $_table.'_list_objects', array( $this, 'class_render_list_page' ),
             $icon_url );
         } else {
             add_menu_page( $page_title, $singular,
-            $permission, $prefix.'_list_objects', array( $this, 'class_render_list_page' ),
+            $permission, $_table . '_list_objects', array( $this, 'class_render_list_page' ),
             $icon_url, $objectTable->menu_order );
         }
     }
@@ -229,6 +233,11 @@ EOM;
         $action = $objectTable->_table;
         $_page = "${action}_list_objects";
         $disp_option = get_option( "${_page}-disp_opt-${user_id}" );
+        $disp_paging = get_option( "${_page}-paging-${user_id}" );
+        if (! $disp_paging ) {
+            $disp_paging = $objectTable->per_page;
+        }
+        $disp_paging = (int) $disp_paging; // or esc_html
         $disp_options = explode( ',', $disp_option );
         $column_defs = $objectTable->column_defs();
         $cb = '';
@@ -253,8 +262,8 @@ EOM;
         $apply_label = $objectTable->_translate( 'Apply' );
         $_prefix = $objectTable->_table;
         $_page = "${_prefix}_list_objects";
-        //$_page = esc_html( $_REQUEST[ 'page' ] );
-        //TODO :: Pagination per..
+        $pagination = $objectTable->_translate( 'Pagination' );
+        $pagination_label = $objectTable->_translate( 'Number of items per page:' );
         $options = <<< EOM
 <div id="screen-meta" class="metabox-prefs">
 <div id="screen-options-wrap" class="hidden" tabindex="-1" aria-label="${tab_label}">
@@ -264,6 +273,14 @@ EOM;
     <fieldset class="metabox-prefs">
     ${cb}
     </fieldset>
+    <fieldset class="metabox-prefs">
+    <legend>${pagination}</legend>
+    <label for="object_per_page">${pagination_label}</label>
+    <input type="number" step="1" min="1" max="999" class="screen-per-page" name="${_prefix}-object-per-page"
+                id="object_per_page" maxlength="3"
+                value="${disp_paging}" />
+    </fieldset>
+
     <p class="submit"><input type="submit" name="screen-options-apply" id="screen-options-apply" class="button button-primary" value="${apply_label}"  /></p>
     </form>
 </div>
@@ -919,7 +936,6 @@ EOM;
     }
     function prepare_items() {
         global $wpdb;
-        $per_page = $this->per_page;
         $columns = $this->get_columns();
         $hidden = array();
         $sortable = $this->get_sortable_columns();
@@ -932,6 +948,15 @@ EOM;
         }
         $paged = (int) $paged;
         if (! $paged ) $paged = 1;
+        $user = wp_get_current_user();
+        $user_id = $user->get( 'ID' );
+        $_table = $this->_table;
+        $_page = "${_table}_list_objects";
+        $disp_paging = get_option( "${_page}-paging-${user_id}" );
+        if ( $disp_paging ) {
+            $this->per_page = $disp_paging;
+        }
+        $per_page = $this->per_page;
         $offsetLimit .= " LIMIT ${per_page} ";
         if ( $paged > 1 ) {
             $paged--;
