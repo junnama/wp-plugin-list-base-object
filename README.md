@@ -1,4 +1,4 @@
-# List Base Object \- plugin for WprdPreess
+# List Base Object \- plugin for WprdPress
 
 This plugin provides the function to add table and show list and edit screen to WordPress\.
 
