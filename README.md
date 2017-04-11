@@ -41,6 +41,12 @@ This plugin provides the function to add table and show list and edit screen to 
         public $textdomain   = 'object-list-example'; // Labguage text domain
         public $permission   = 'activate_plugins';    // Permission for this action(s)
         protected $_filter   = '';                    // Add query for get list objects, ex "post_type='post'"
+        public $icon_url     = 'images/icon.png';     // Add icon to menu item
+        public $menu_type    = 'object';              // Placement of menu item
+        public $menu_order   = 1;                     // Position of menu item( when $menu_type='menu' )
+        public function __path() {
+            return __FILE__;
+        }
         function column_defs(){
             $columns = array(
             // Array Table scheme and property for list screen

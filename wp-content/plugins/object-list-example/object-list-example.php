@@ -28,6 +28,12 @@ class ObjectListExample extends ListBaseObject {
     public $textdomain   = 'object-list-example'; // Labguage text domain
     public $permission   = 'activate_plugins';    // Permission for this action(s)
     protected $_filter   = '';                    // Add query for get list objects, ex "post_type='post'"
+    public $icon_url     = 'images/icon.png';     // Add icon to menu item
+    public $menu_type    = 'object';              // Placement of menu item
+    public $menu_order   = 1;                     // Position of menu item( when $menu_type='menu' )
+    public function __path() {
+        return __FILE__;
+    }
     function column_defs(){
         $columns = array(
             'ID'      => array( 'label' => 'ID',
@@ -36,13 +42,13 @@ class ObjectListExample extends ListBaseObject {
                                 'type' => 'integer',
                                 'property' => 'int(11) NOT NULL',
                               ),
-            'name'    => array( 'label' => 'Name',  // Label for list and edit screen.
-                                'list' => true,     // Show column for list screen
-                                'edit' => true,     // Show column for edit screen
-                                'search' => true,   // Search this column
-                                'type' => 'string', // Control type for edit screen
-                                'indexed' => true,  // Add index to this column
-                                'property' => "varchar(50) NOT NULL DEFAULT ''", // SQL for CREATE or ALTER TABLE
+            'name'    => array( 'label' => 'Name',
+                                'list' => true,
+                                'edit' => true,
+                                'search' => true,
+                                'type' => 'string',
+                                'indexed' => true,
+                                'property' => "varchar(50) NOT NULL DEFAULT ''",
                               ),
             'email'   => array( 'label' => 'Email',
                                 'list' => true,

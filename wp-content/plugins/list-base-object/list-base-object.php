@@ -59,7 +59,19 @@ class ListBaseObjectInit {
         $prefix = $objectTable->_table;
         $menu_function_name = $prefix.'_add_menu_items';
         $permission = $objectTable->permission;
-        add_menu_page( $page_title, $singular, $permission, $prefix.'_list_objects', array( $this, 'class_render_list_page' ) );
+        $icon_url = null;
+        if ( $objectTable->icon_url ) {
+            $icon_url = plugins_url( $objectTable->icon_url, $objectTable->__path() );
+        }
+        if ( $objectTable->menu_type == 'object' ) {
+            add_object_page( $page_title, $singular,
+            $permission, $prefix.'_list_objects', array( $this, 'class_render_list_page' ),
+            $icon_url );
+        } else {
+            add_menu_page( $page_title, $singular,
+            $permission, $prefix.'_list_objects', array( $this, 'class_render_list_page' ),
+            $icon_url, $objectTable->menu_order );
+        }
     }
     function class_render_list_page() {
         if (! $this->magic_quotes ) {
@@ -279,6 +291,10 @@ class ListBaseObject extends WP_List_Table {
     public $_can_edit       = false;
     public $list_options    = false;
     protected $_can_upgrade = false;
+    public $menu_type       = 'object';
+    public $menu_order      = 1;
+
+    public $icon_url        = null; //'images/icon.png';
 
     // public $display_options = '';
     protected $_filter      = null; // "post_type='post' AND post_status !='auto-draft'";
@@ -293,6 +309,9 @@ class ListBaseObject extends WP_List_Table {
     public $textdomain      = 'list-base-object';
     public $permission      = 'activate_plugins';
     public $current_object  = '';
+    public function __path() {
+        return __FILE__;
+    }
     public function __construct() {
         if ( $this->_can_upgrade ) {
             global $wpdb;
@@ -523,7 +542,7 @@ EOM;
         if ( $type == 'string' ) {
             if ( $name == $this->_title ) {
                 $html = '<input placeholder="' . $label.  '" type="text" id="title" name="' . $name .'" value="' . $value . '">';
-                $html = "<div id=\"titlediv\"><div id=\"titlediv\">${html}</div></div>";
+                $html = "<div id=\"titlediv\" style=\"margin-top:10px;margin-bottom:10px\"><div id=\"titlediv\">${html}</div></div>";
             } else {
                 $html = '<input id="' . $name . '" class="regular-text" type="text" name="' . $name .'" value="' . $value . '">';
             }
