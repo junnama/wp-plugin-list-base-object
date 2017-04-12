@@ -31,6 +31,9 @@ class ObjectListExample extends ListBaseObject {
     public $icon_url     = 'images/icon.png';     // Add icon to menu item
     public $menu_type    = 'object';              // Placement of menu item
     public $menu_order   = 1;                     // Position of menu item( when $menu_type='menu' )
+    public $month_filter = true;                  // Show month filter
+    public $date_col     = 'date';                // Columns for month filter
+
     public function __path() {
         return __FILE__;
     }
@@ -78,7 +81,7 @@ class ObjectListExample extends ListBaseObject {
                                 'type' => 'datetime',
                                 'indexed' => true,
                                 'property' => "datetime NOT NULL DEFAULT '0000-00-00 00:00:00'",
-                                'modifired' => true, // or 'created' => true,
+                                'created' => true, // or 'modifired' => true,
                               ),
             'author'  => array( 'label' => 'Author',
                                 'list' => true,

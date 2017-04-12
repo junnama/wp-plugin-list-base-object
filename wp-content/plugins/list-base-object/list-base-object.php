@@ -10,8 +10,8 @@ License: GPL2
 */
 // add_filter( 'pre_update_option_active_plugins', 'high_priority_active_plugins' );
 /* TODO
-    List Filter
-    To HTML Template
+    HTML Template
+    Import from CSV or other format
 */
 if(! class_exists( 'WP_List_Table' )){
     require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
@@ -117,7 +117,6 @@ class ListBaseObjectInit {
         $_edit_html = '';
         $message_block = '';
         $notice_class = 'success';
-        $_can_search = $objectTable->_can_search;
         $_can_edit = $objectTable->_can_edit;
         $obj;
         $id ;
@@ -158,6 +157,21 @@ EOT;
         if ( $objectTable->list_options ) {
             $disp_options = $this->display_options( $objectTable );
         }
+        $has_option = false;
+        $extra_tablenav = '';
+        $search_box = '';
+        if ( $objectTable->_can_search ) {
+            $search_box = $this->display_search_box( $objectTable, $search_label );
+            $has_option = true;
+        }
+        $months_dropdown = '';
+        if ( ( $objectTable->month_filter ) && ( $objectTable->date_col ) ) {
+            $months_dropdown = $this->display_months_dropdown( $objectTable, $objectTable->date_col );
+            $objectTable->custom_filter = $objectTable->custom_filter . $months_dropdown;
+            $has_option = true;
+            //$extra_tablenav .= $months_dropdown;
+        }
+        // $objectTable->extra_tablenav = $extra_tablenav;
         $insert_footer = $objectTable->_insert_footer();
         ?>
         <?php echo $message_block ?>
@@ -181,16 +195,10 @@ EOT;
                 </p>
             </form>
         <?php else: ?>
-            <?php if ($_can_search): ?>
+            <?php if ($has_option): ?>
             <form id="posts-filter" method="get">
-            <?php // $objectTable->search_box($search_label,'s') ?>
-            <p class="search-box">
-                <label class="screen-reader-text" for="<?php echo $_table ?>-search-input"><?php echo $search_label ?>:</label>
-                <input type="hidden" name="page" value="<?php echo $_page ?>" />
-                <input type="hidden" name="action" value="search" />
-                <input type="search" id="<?php echo $_table ?>-search-input" name="s" value="<?php echo $q; ?>" />
-                <input type="submit" id="search-submit" class="button" value="<?php echo $search_label ?>"  />
-            </p>
+            <?php echo $search_box ?>
+            <?php echo $objectTable->display_custom_filter() ?>
             </form>
             <?php endif; ?>
             <form id="objects-filter" method="post">
@@ -200,29 +208,39 @@ EOT;
                 <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce() ?>" />
             </form>
             <script>
-            jQuery('#doaction').on('click',function(){
-                if ( jQuery('#bulk-action-selector-top').val() == -1 ) {
-                    alert( '<?php echo $no_act ?>' );
-                    return false;
-                }
-                var checkboxes = jQuery( 'input[type="checkbox"]' );
-                var item_selected = 0;
-                for ( var i = checkboxes.length; i--; ) {
-                    if ( checkboxes[i].name == '<?php echo $_table ?>[]' ) {
-                        if ( checkboxes[i].checked ) {
-                             item_selected++;
+            if(jQuery('#bulk-action-selector-top').length){
+                var offset_selector = jQuery('#bulk-action-selector-top').offset();
+                var doaction_selector = jQuery('#doaction').offset();
+                jQuery('#custom-filters').offset({ top: offset_selector.top + 4, left: doaction_selector.left + jQuery('#doaction').width() + 37 });
+            } else {
+                var posts_filter = jQuery('#posts-filter').offset();
+                jQuery('#custom-filters').offset({ top: posts_filter.top + 42 });
+            }
+            if(jQuery('#bulk-action-selector-top').length){
+                jQuery('#doaction').on('click',function(){
+                    if ( jQuery('#bulk-action-selector-top').val() == -1 ) {
+                        alert( '<?php echo $no_act ?>' );
+                        return false;
+                    }
+                    var checkboxes = jQuery( 'input[type="checkbox"]' );
+                    var item_selected = 0;
+                    for ( var i = checkboxes.length; i--; ) {
+                        if ( checkboxes[i].name == '<?php echo $_table ?>[]' ) {
+                            if ( checkboxes[i].checked ) {
+                                 item_selected++;
+                            }
                         }
                     }
-                }
-                if (! item_selected ) {
-                    alert( '<?php echo $no_item ?>' );
-                    return false;
-                }
-                var action_name = jQuery('#bulk-action-selector-top').val();
-                if(! confirm( '<?php echo $phrase_1 ?>' + get_action_name( action_name ) + '<?php echo $phrase_2 ?>' + item_selected + '<?php echo $phrase_3 ?>' )){
-                    return false;
-                }
-            });
+                    if (! item_selected ) {
+                        alert( '<?php echo $no_item ?>' );
+                        return false;
+                    }
+                    var action_name = jQuery('#bulk-action-selector-top').val();
+                    if(! confirm( '<?php echo $phrase_1 ?>' + get_action_name( action_name ) + '<?php echo $phrase_2 ?>' + item_selected + '<?php echo $phrase_3 ?>' )){
+                        return false;
+                    }
+                })
+            };
 <?php echo $get_action_name ?>
             jQuery('#bulk-action-selector-top').on('change',function(){
                 jQuery('#bulk-action-selector-bottom').val(jQuery(this).val());
@@ -236,7 +254,62 @@ EOT;
 <?php echo $insert_footer ?>
         <?php
     }
+    function display_months_dropdown( $objectTable, $date_col ) {
+        global $wpdb;
+        $date_col = $wpdb->escape( $date_col );
+        $table = $wpdb->prefix . $objectTable->_table;
+        $sql = "
+            SELECT DISTINCT YEAR( ${date_col} ) AS year, MONTH( ${date_col} ) AS month
+            FROM $table
+            ORDER BY ${date_col} DESC";
+        $months = $wpdb->get_results( $sql );
+        $month_count = count( $months );
+        if ( !$month_count || ( 1 == $month_count && 0 == $months[0]->month ) )
+            return;
+        if( 'search' === $objectTable->current_action() ) {
+            $m = isset( $_REQUEST[ 'm' ] ) ? (int) $_REQUEST[ 'm' ] : 0;
+        }
+        $all = $objectTable->_translate( 'All dates' );
+        global $wp_locale;
+        $label = $objectTable->_translate( 'Filter by date' );
+        $dd = <<< EOT
+            <label for="filter-by-date" class="screen-reader-text">${label}</label>
+            <select name="m" id="filter-by-date">
+            <option>${all}</option>
+EOT;
+        foreach ( $months as $arc_row ) {
+            if ( 0 == $arc_row->year )
+                continue;
+            $month = zeroise( $arc_row->month, 2 );
+            $year = $arc_row->year;
+            $dd .= sprintf( "            <option %s value='%s'>%s</option>\n",
+                selected( $m, $year . $month, false ),
+                esc_attr( $arc_row->year . $month ),
+                sprintf( __( '%1$s %2$d' ), $wp_locale->get_month( $month ), $year )
+            );
+        }
+        $dd .= "            </select>\n";
+        return $dd;
+    }
+    function display_search_box( $objectTable, $search_label, $name = 's' ) {
+        $_table = $objectTable->_table;
+        $_page = "${_table}_list_objects";
+        if( 'search' === $objectTable->current_action() ) {
+            $q = esc_html( $_REQUEST[ 's' ] );
+        }
+        $box = <<< EOT
+            <p class="search-box">
+                <label class="screen-reader-text" for="${_table}-search-input">${search_label}:</label>
+                <input type="hidden" name="page" value="${_page}" />
+                <input type="hidden" name="action" value="search" />
+                <input type="search" id="${_table}-search-input" name="${name}" value="${q}" />
+                <input type="submit" id="search-submit" class="button" value="${search_label}"  />
+            </p>
+EOT;
+        return $box;
+    }
     function display_options( $objectTable ) {
+        $this->display_months_dropdown( $objectTable, 'date' );
         $user_id = $objectTable->_user()->ID;
         $action = $objectTable->_table;
         $_page = "${action}_list_objects";
@@ -295,7 +368,6 @@ EOT;
                 id="object_per_page" maxlength="3"
                 value="${disp_paging}" />
     </fieldset>
-
     <p class="submit"><input type="submit" name="screen-options-apply" id="screen-options-apply" class="button button-primary" value="${apply_label}"  /></p>
     </form>
 </div>
@@ -339,6 +411,8 @@ class ListBaseObject extends WP_List_Table {
     public $textdomain      = 'list-base-object';
     public $permission      = 'activate_plugins';
     public $current_object  = '';
+    public $extra_tablenav  = '';
+    public $custom_filter   = '';
     public function __path() {
         return __FILE__;
     }
@@ -402,6 +476,18 @@ class ListBaseObject extends WP_List_Table {
                                        'obj_col' => 'user_nicename' ),*/
         );
         return $columns;
+    }
+    public function display_custom_filter() {
+        if ( $this->custom_filter ) {
+            $label = $this->_translate( 'Filter' );
+            echo "        <span id=\"custom-filters\">\n";
+            echo '          ' . $this->custom_filter;
+            echo "          <input type=\"submit\" name=\"_filter_action\" class=\"button\" value=\"${label}\" />";
+            echo "        </span>\n";
+        }
+    }
+    public function extra_tablenav( $which ) {
+        echo $this->extra_tablenav;
     }
     function _user() {
         return wp_get_current_user();
@@ -916,13 +1002,25 @@ EOT;
             if ( $where ) $where .= ' AND ';
             $where .= $filter;
         }
+        if ( ( $this->month_filter ) && ( $this->date_col ) ) {
+            $d = $this->date_col;
+            $m = $_REQUEST[ 'm' ];
+            $m = (int) $m;
+            if ( $m ) {
+                $ts = strtotime( $this->ts2db( $m . '01' ) );
+                $start = date( 'Y-m-01', $ts );
+                $start = $this->ts2db( $start . '00:00:00' );
+                $end = date( 'Y-m-t', $ts );
+                $end = $this->ts2db( $end . '23:59:59' );
+                $where .= " AND ( $d >= '${start}' AND $d <= '${end}' ) ";
+            }
+        }
         $this->_filter = $where;
     }
-    function build_query() {
-        $where = '';
+    function build_query( $where = '' ) {
         if ( $this->_filter ) {
             $filter = $this->_filter;
-            $where = " WHERE ${filter} ";
+            $where = " WHERE ${filter} " . $where;
         }
         return $where;
     }

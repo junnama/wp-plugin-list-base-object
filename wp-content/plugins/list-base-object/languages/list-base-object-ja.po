@@ -118,3 +118,8 @@ msgstr "プラグイン %s をアップグレードしました(バージョン 
 msgid "The table %s is already in use."
 msgstr "テーブル %s は既に利用されています。"
 
+msgid "Search Results for: %s"
+msgstr "&#8220;%s&#8221;の検索結果"
+
+msgid "Filter"
+msgstr "絞り込み検索"
