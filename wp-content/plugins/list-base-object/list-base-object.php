@@ -277,6 +277,7 @@ EOT;
         $_page = "${_prefix}_list_objects";
         $pagination = $objectTable->_translate( 'Pagination' );
         $pagination_label = $objectTable->_translate( 'Number of items per page:' );
+        $column_label = $objectTable->_translate( 'Columns' );
         $options = <<< EOT
 <div id="screen-meta" class="metabox-prefs">
 <div id="screen-options-wrap" class="hidden" tabindex="-1" aria-label="${tab_label}">
@@ -284,6 +285,7 @@ EOT;
     <input type="hidden" name="page" value="${_page}" />
     <input type="hidden" name="action" value="${_prefix}-apply-display-options" />
     <fieldset class="metabox-prefs">
+    <legend>${column_label}</legend>
     ${cb}
     </fieldset>
     <fieldset class="metabox-prefs">
