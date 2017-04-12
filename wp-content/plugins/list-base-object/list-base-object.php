@@ -725,8 +725,8 @@ EOT;
                 $sql = "DELETE FROM ${table} WHERE ${_primary} IN ( ${_ids} )";
                 $message = $this->_query( $sql );
                 $this->last_query = $sql;
-                $params = array( 'query'  => $sql,
-                                 'object' => $rows,
+                $params = array( 'query'    => $sql,
+                                 'rows'     => $rows,
                                  'callback' => 'post_delete' );
                 $this->_callback( $params );
                 if ( $message ) {
@@ -849,8 +849,8 @@ EOT;
                 if ( is_array( $row ) ) {
                     $this->current_object = $row;
                     if ( 'save' === $this->current_action() ) {
-                        $params = array( 'query'  => $this->last_query,
-                                         'object' => $row,
+                        $params = array( 'query'    => $this->last_query,
+                                         'rows'     => $row,
                                          'callback' => 'post_save' );
                         $this->_callback( $params );
                     }
@@ -974,8 +974,8 @@ EOT;
         $sql = "SELECT * FROM $teble ${whereOrderBy} ${offsetLimit}";
         $rows = $wpdb->get_results( $sql );
         $this->last_query = $sql;
-        $params = array( 'query'  => $sql,
-                         'object' => $rows,
+        $params = array( 'query'    => $sql,
+                         'rows'     => $rows,
                          'callback' => 'post_load' );
         $this->_callback( $params );
         $data = array();
@@ -996,6 +996,9 @@ EOT;
     }
     function _callback( &$params ) {
         // Run Callbacks.
+        // $callback = $params[ 'callback' ];
+        // $query    = $params[ 'query' ];
+        // $rows     = $params[ 'rows' ];
     }
     function _insert_footer() {
         // Do Some Actions or Set Style.
