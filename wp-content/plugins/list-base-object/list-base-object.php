@@ -135,11 +135,11 @@ class ListBaseObjectInit {
         foreach ( $bulk_actions as $key => $value ) {
             $get_action_name .= " if ( name == '${key}' ) { return '${value}';} ";
         }
-        $get_action_name = <<< EOM
+        $get_action_name = <<< EOT
             function get_action_name( name ) {
                 ${get_action_name}
             }
-EOM;
+EOT;
         $phrase_1 = $objectTable->_translate( 'Are you sure you want to ' );
         $phrase_2 = $objectTable->_translate( ' items? (' );
         $phrase_3 = $objectTable->_translate( ' items selected)' );
@@ -264,7 +264,7 @@ EOM;
         $_page = "${_prefix}_list_objects";
         $pagination = $objectTable->_translate( 'Pagination' );
         $pagination_label = $objectTable->_translate( 'Number of items per page:' );
-        $options = <<< EOM
+        $options = <<< EOT
 <div id="screen-meta" class="metabox-prefs">
 <div id="screen-options-wrap" class="hidden" tabindex="-1" aria-label="${tab_label}">
     <form id='adv-settings' method='post'>
@@ -290,7 +290,7 @@ EOM;
         <button type="button" id="show-settings-link" class="button show-settings" aria-controls="screen-options-wrap" aria-expanded="false">${button_label}</button>
     </div>
 </div>
-EOM;
+EOT;
         return $options;
     }
 }
@@ -459,11 +459,11 @@ PRIMARY KEY (${primary_key})${indexed}
     }
     function show_message() {
         $message = $this->_message;
-        $html = <<< EOM
+        $html = <<< EOT
         <div id="message" class="updated fade">
           <p><strong>${message}</strong></p>
         </div>
-EOM;
+EOT;
         echo $html;
     }
     function _get_textdomain( $phrase, $params = null ) {
@@ -571,14 +571,14 @@ EOM;
             $html = $value;
         }
         if ( $name != $this->_title ) {
-            $html = <<< EOM
+            $html = <<< EOT
     <table class="form-table">
       <tr class="user-user-login-wrap">
         <th><label for="${name}">${label}</label></th>
         <td>${html}</td>
       </tr>
     </table>
-EOM;
+EOT;
         }
         return $html;
     }
@@ -999,9 +999,9 @@ EOM;
     }
     function _insert_footer() {
         // Do Some Actions or Set Style.
-        $html = <<< EOM
+        $html = <<< EOT
 
-EOM;
+EOT;
         return $html;
     }
 }
