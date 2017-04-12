@@ -9,10 +9,13 @@ Author URI: https://alfasado.net/
 License: GPL2
 */
 // add_filter( 'pre_update_option_active_plugins', 'high_priority_active_plugins' );
+/* TODO
+    List Filter
+    To HTML Template
+*/
 if(! class_exists( 'WP_List_Table' )){
     require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
 }
-load_plugin_textdomain( 'list-base-object', false, basename( dirname( __FILE__ ) ) . '/languages' );
 $plugin_id = 'ListBaseObject';
 $init_plugin = $plugin_id . 'Init';
 new $init_plugin;
@@ -21,6 +24,7 @@ class ListBaseObjectInit {
     protected $magic_quotes = false;
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+        load_plugin_textdomain( 'list-base-object', false, basename( dirname( __FILE__ ) ) . '/languages' );
     }
     public function admin_menu() {
         $classname = get_class( $this );
@@ -100,7 +104,13 @@ class ListBaseObjectInit {
         $_table = $objectTable->_table;
         $_primary = $objectTable->_primary;
         $_page = "${_table}_list_objects";
-        $q = esc_html( $_REQUEST[ 's' ] );
+        if( 'search' === $objectTable->current_action() ) {
+            $q = esc_html( $_REQUEST[ 's' ] );
+            $search_text = '';
+            if ( $q ) {
+                $search_text = $objectTable->_translate( 'Search Results for: %s', $q );
+            }
+        }
         $singular = $objectTable->_translate( $objectTable->singular );
         $search_label = $objectTable->_translate( 'Search %s', $singular );
         $create_button = '';
@@ -157,7 +167,7 @@ EOT;
         <?php else: ?>
         <?php echo $disp_options ?>
         <div class="wrap">
-            <h1><?php echo $this->page_title ?> <?php echo $create_button ?></h1>
+            <h1><?php echo $this->page_title ?> <?php echo $create_button ?> <?php if ($search_text): ?><span class="subtitle"><?php echo $search_text?></span><?php endif; ?></h1>
         <?php endif; ?>
         <?php if ($_edit_screen): ?>
             <form id="edit-form" method="post">
@@ -595,7 +605,6 @@ EOT;
         $edit = $this->_translate( 'Edit' );
         $delete = $this->_translate( 'Delete' );
         $_nonce = wp_create_nonce();
-        // $_page = esc_html( $_REQUEST[ 'page' ] );
         $_page = "${action}_list_objects";
         $phrase = $this->_translate( 'Are you sure you want to delete this object?' );
         $actions = array(
@@ -652,7 +661,6 @@ EOT;
         $user_id = $this->_user()->ID;
         $action = $this->_table;
         $_page = "${action}_list_objects";
-        // $_page = esc_html( $_REQUEST[ 'page' ] );
         $disp_option = get_option( "${_page}-disp_opt-${user_id}" );
         $disp_options = explode( ',', $disp_option );
         foreach ( $cols as $key => $values ) {
@@ -676,12 +684,10 @@ EOT;
         $sortable_columns = array();
         $cols = $this->column_defs();
         foreach ( $cols as $key => $values ) {
-            // if ( isset( $values[ 'sortable' ] ) && ( $values[ 'sortable' ] ) ) {
-                if ( $key == $this->_title ) {
-                    $key = 'title';
-                }
-                $sortable_columns[ $key ] = array( $key, false );
-            // }
+            if ( $key == $this->_title ) {
+                $key = 'title';
+            }
+            $sortable_columns[ $key ] = array( $key, false );
         }
         return $sortable_columns;
     }
@@ -845,7 +851,6 @@ EOT;
                 $sql = "SELECT * FROM ${table} WHERE $col=%d";
                 $sql = $wpdb->prepare( $sql, $id );
                 $row = $wpdb->get_results( $sql );
-                // $this->last_query = $sql;
                 if ( is_array( $row ) ) {
                     $this->current_object = $row;
                     if ( 'save' === $this->current_action() ) {
@@ -885,6 +890,7 @@ EOT;
     function search_objects( $q ) {
         global $wpdb;
         $q = $wpdb->escape( $q );
+        $phrases = preg_split('/[\s,]+/', $q);
         $cols = $this->column_defs();
         $queries = array();
         foreach( $cols as $key => $values ) {
@@ -892,11 +898,18 @@ EOT;
                 $key = $this->_title;
             }
             if ( isset( $values[ 'search' ] ) && ( $values[ 'search' ] ) ) {
-                $queries[] = $key . " LIKE '%$q%'";
+                $exp = array();
+                foreach ( $phrases as $phrase ) {
+                    $wpdb->escape( $phrase );
+                    $exp[] = $key . " LIKE '%${phrase}%'";
+                }
+                // $queries[] = $key . " LIKE '%$q%'";
+                $querie = implode( ' AND ', $exp );
+                $queries[] = "( ${querie} )";
             }
         }
         $where = implode( ' OR ', $queries );
-        if ( $where ) $where = "(${where})";
+        if ( $where ) $where = "( ${where} )";
         if ( $filter = $this->_filter ) {
             if ( $where ) $where .= ' AND ';
             $where .= $filter;
@@ -995,16 +1008,24 @@ EOT;
         ) );
     }
     function _callback( &$params ) {
-        // Run Callbacks.
-        // $callback = $params[ 'callback' ];
-        // $query    = $params[ 'query' ];
-        // $rows     = $params[ 'rows' ];
+      /*
+        $callback = $params[ 'callback' ];
+        $query    = $params[ 'query' ];
+        $rows     = $params[ 'rows' ];
+        ob_start();
+        var_dump( $params );
+        $msg = ob_get_contents();
+        ob_end_clean();
+        $this->_debug( $msg );
+      */
     }
     function _insert_footer() {
         // Do Some Actions or Set Style.
         $html = <<< EOT
-
 EOT;
         return $html;
+    }
+    function _debug( $str ) {
+        $this->_page_message = $this->_page_message . "<pre>${str}</pre>";
     }
 }
