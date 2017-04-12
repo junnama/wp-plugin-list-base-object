@@ -29,8 +29,7 @@ class ListBaseObjectInit {
         if (! $objectTable->_display ) {
             return;
         }
-        $user = wp_get_current_user();
-        $user_id = $user->get( 'ID' );
+        $user_id = $objectTable->_user()->ID;
         $_table = $objectTable->_table;
         $_page = "${_table}_list_objects";
         if( $_table . '-apply-display-options' === $objectTable->current_action() ) {
@@ -228,8 +227,7 @@ EOT;
         <?php
     }
     function display_options( $objectTable ) {
-        $user = wp_get_current_user();
-        $user_id = $user->get( 'ID' );
+        $user_id = $objectTable->_user()->ID;
         $action = $objectTable->_table;
         $_page = "${action}_list_objects";
         $disp_option = get_option( "${_page}-disp_opt-${user_id}" );
@@ -241,6 +239,11 @@ EOT;
         $disp_options = explode( ',', $disp_option );
         $column_defs = $objectTable->column_defs();
         $cb = '';
+        if ( $objectTable->_title ) {
+        $cb = sprintf( '<label style="color:gray"><input type="checkbox" name="disp-opt-%s" value="1" checked disabled>%s</label>',
+            $objectTable->_title, 
+            $objectTable->_translate( $objectTable->column_defs()[ $objectTable->_title ][ 'label' ] ) );
+        }
         foreach ( $column_defs as $key => $params ) {
             if ( $key != $objectTable->_title ) {
                 if ( isset( $params[ 'list' ] ) && ( $params[ 'list' ] ) ) {
@@ -310,10 +313,8 @@ class ListBaseObject extends WP_List_Table {
     protected $_can_upgrade = false;
     public $menu_type       = 'object';
     public $menu_order      = 1;
-
     public $icon_url        = null; //'images/icon.png';
 
-    // public $display_options = '';
     protected $_filter      = null; // "post_type='post' AND post_status !='auto-draft'";
     public $_edit_screen    = false;
     public $last_query      = false;
@@ -389,6 +390,9 @@ class ListBaseObject extends WP_List_Table {
                                        'obj_col' => 'user_nicename' ),*/
         );
         return $columns;
+    }
+    function _user() {
+        return wp_get_current_user();
     }
     function build_scheme() {
         global $wpdb;
@@ -573,7 +577,7 @@ EOT;
         if ( $name != $this->_title ) {
             $html = <<< EOT
     <table class="form-table">
-      <tr class="user-user-login-wrap">
+      <tr class="${name}-wrap">
         <th><label for="${name}">${label}</label></th>
         <td>${html}</td>
       </tr>
@@ -645,8 +649,7 @@ EOT;
             'cb' => '<input type="checkbox" />',
         );
         $cols = $this->column_defs();
-        $user = wp_get_current_user();
-        $user_id = $user->get( 'ID' );
+        $user_id = $this->_user()->ID;
         $action = $this->_table;
         $_page = "${action}_list_objects";
         // $_page = esc_html( $_REQUEST[ 'page' ] );
@@ -775,8 +778,7 @@ EOT;
                         $value = $_REQUEST[ $key ];
                         if ( $type == 'object' ) {
                             if ( isset( $params[ 'user_id' ] ) && ( $params[ 'user_id' ] ) ) {
-                                $user = wp_get_current_user();
-                                $value = $user->get( 'ID' );
+                                $value = $this->_user()->ID;
                                 $type = 'integer';
                             } else {
                                 continue;
@@ -902,7 +904,6 @@ EOT;
         $this->_filter = $where;
     }
     function build_query() {
-        global $wpdb;
         $where = '';
         if ( $this->_filter ) {
             $filter = $this->_filter;
@@ -948,8 +949,7 @@ EOT;
         }
         $paged = (int) $paged;
         if (! $paged ) $paged = 1;
-        $user = wp_get_current_user();
-        $user_id = $user->get( 'ID' );
+        $user_id = $this->_user()->ID;
         $_table = $this->_table;
         $_page = "${_table}_list_objects";
         $disp_paging = get_option( "${_page}-paging-${user_id}" );
