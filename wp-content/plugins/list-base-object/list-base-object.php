@@ -22,6 +22,7 @@ new $init_plugin;
 class ListBaseObjectInit {
     protected $page_title;
     protected $magic_quotes = false;
+    protected $objectTable = null;
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'admin_menu' ) );
         load_plugin_textdomain( 'list-base-object', false, basename( dirname( __FILE__ ) ) . '/languages' );
@@ -30,6 +31,7 @@ class ListBaseObjectInit {
         $classname = get_class( $this );
         $classname = preg_replace( '/Init$/', '', $classname );
         $objectTable = new $classname;
+        $this->objectTable = $objectTable;
         if (! $objectTable->_display ) {
             return;
         }
@@ -72,13 +74,23 @@ class ListBaseObjectInit {
         }
         if ( $objectTable->menu_type == 'object' ) {
             add_object_page( $page_title, $singular,
-            $permission, $_table.'_list_objects', array( $this, 'class_render_list_page' ),
-            $icon_url );
+                $permission, $_table.'_list_objects', array( $this, 'class_render_list_page' ),
+                $icon_url );
         } else {
             add_menu_page( $page_title, $singular,
-            $permission, $_table . '_list_objects', array( $this, 'class_render_list_page' ),
-            $icon_url, $objectTable->menu_order );
+                $permission, $_table . '_list_objects', array( $this, 'class_render_list_page' ),
+                $icon_url, $objectTable->menu_order );
         }
+        if ( $objectTable->_can_edit ) {
+            add_submenu_page( $_table . '_list_objects',  $objectTable->_translate( 'Add New %s', $singular ),
+            $objectTable->_translate( 'Add New %s', $singular ), $permission, 
+                $_table . '_list_objects_submenu', array( $this, 'class_render_new_page' ) );
+        }
+    }
+    function class_render_new_page() {
+        $objectTable = $this->objectTable;
+        $_REQUEST[ 'action' ] = 'edit';
+        $this->class_render_list_page();
     }
     function class_render_list_page() {
         if (! $this->magic_quotes ) {
@@ -94,7 +106,8 @@ class ListBaseObjectInit {
         }
         $classname = get_class( $this );
         $classname = preg_replace( '/Init$/', '', $classname );
-        $objectTable = new $classname;
+        //$objectTable = new $classname;
+        $objectTable = $this->objectTable;
         if (! $objectTable->_display ) {
             return;
         }
