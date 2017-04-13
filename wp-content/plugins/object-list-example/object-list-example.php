@@ -14,7 +14,7 @@ require_once( ABSPATH . 'wp-content/plugins/list-base-object/list-base-object.ph
 class ObjectListExample extends ListBaseObject {
     public $plugin_id    = 'Object List Example';
     public $plugin_key   = 'objectlistexample';   // Uniqkey for upgrade table
-    public $version      = 1.2;                   // Version for upgrade table
+    public $version      = 1.4;                   // Version for upgrade table
     public $singular     = 'Contact Info';        // Object label
     public $plural       = 'Contact Info';        // Object label plural
     public $_table       = 'contact_info';        // Database table name
@@ -93,6 +93,24 @@ class ObjectListExample extends ListBaseObject {
                                 'obj_col' => 'user_nicename',
                                 'property' => "bigint(20) unsigned NOT NULL default '0'",
                                 'user_id' => true,
+                              ),
+            'flag'    => array( 'label' => 'Flag',
+                                'list' => true,
+                                'edit' => true,
+                                'type' => 'boolean',
+                                'indexed' => true,
+                                'property' => "tinyint(4) default '0'",
+                              ),
+            'status'  => array( 'label' => 'Status',
+                                'list' => true,
+                                'edit' => true,
+                                'type' => 'select',
+                                'items' => array(
+                                    1 => 'Disable',
+                                    2 => 'Active',
+                                ),
+                                'indexed' => true,
+                                'property' => "int(11) default '2'",
                               ),
         );
         return $columns;

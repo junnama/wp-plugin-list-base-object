@@ -18,3 +18,15 @@ msgstr "List Base Objectのサンプルプラグインです。"
 
 msgid "Company"
 msgstr "所属"
+
+msgid "Flag"
+msgstr "フラグ"
+
+msgid "Status"
+msgstr "ステータス"
+
+msgid "Disable"
+msgstr "無効"
+
+msgid "Active"
+msgstr "有効"

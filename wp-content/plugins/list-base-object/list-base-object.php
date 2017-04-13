@@ -570,6 +570,9 @@ PRIMARY KEY (${primary_key})${indexed}
                 $row = $row[ 0 ];
                 $value = $row->$col;
             }
+        } else if ( $args[ 'type' ] == 'select' ) {
+            $value = $args[ 'items' ][ $value ];
+            $value = $this->_translate( $value );
         }
         if (! $no_trim ) {
             $value = $this->trim_to( $value );
@@ -682,12 +685,31 @@ EOT;
             } else {
                 $html = '<input id="' . $name . '" class="regular-text" type="text" name="' . $name .'" value="' . $value . '">';
             }
+        } else if ( $type == 'select' ) {
+            $items = $this->column_defs();
+            $items = $items[ $name ][ 'items' ];
+            $html = '<select id="' . $name . '" name="' . $name .'">';
+            foreach ( $items as $var => $key ) {
+                $key = $this->_translate( $key );
+                $selected = ' ';
+                if ( $value == $key ) {
+                    $selected = ' selected ';
+                }
+                $html .= '<option' . $selected . 'value="' . $var . '">' . $key .  '</option>';
+            }
+            $html .= '</select>';
         } else if ( $type == 'text' ) {
             $html = '<textarea rows="5" class="large-text code" name="' . $name .'">' . $value . '</textarea>';
         } else if ( $type == 'datetime' ) {
             $html = '<input id="' . $name . '" class="regular-text" type="text" name="' . $name .'" value="' . $value . '">';
+        } else if ( $type == 'small-text' ) {
+            $html = '<input id="' . $name . '" class="small-text" type="text" name="' . $name .'" value="' . $value . '">';
         } else if ( $type == 'object' ) {
             $html = $value;
+        } else if ( $type == 'boolean' ) {
+            $checked = ' ';
+            if ( $value ) $checked = ' checked ';
+            $html = '<input' . $checked . 'id="' . $name . '" type="checkbox" name="' . $name .'" value="1">';
         }
         if ( $name != $this->_title ) {
             $html = <<< EOT
@@ -1139,11 +1161,35 @@ EOT;
         $this->_debug( $msg );
       */
     }
+    function _insert_footer_default() {
+        if ( $this->_edit_screen ) {
+            return;
+        }
+        $column_defs = $this->column_defs();
+        $jq = array();
+        foreach ( $column_defs as $key => $params ) {
+            if ( $key == $this->_primary ) {
+                continue;
+            }
+            $type = $params[ 'type' ];
+            if ( ( $type == 'integer' )
+                || ( $type == 'boolean' )
+                ||  ( $type == 'select' ) ) {
+                $jq[] = "            jQuery('.column-${key}').css('width','104px');";
+            }
+        }
+        $js = '';
+        if ( count( $jq ) ) {
+            $css = implode( "\n", $jq );
+            $js = "            <script>\n$css\n            </script>";
+        }
+        return $js;
+    }
     function _insert_footer() {
         // Do Some Actions or Set Style.
         $html = <<< EOT
 EOT;
-        return $html;
+        return $this->_insert_footer_default() . $html;
     }
     function _debug( $str ) {
         $this->_page_message = $this->_page_message . "<pre>${str}</pre>";
