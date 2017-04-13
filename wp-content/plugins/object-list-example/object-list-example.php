@@ -23,6 +23,7 @@ class ObjectListExample extends ListBaseObject {
     public $_display     = true;                  // Can view list screen
     public $_can_upgrade = true;                  // Can create or upgrade table
     public $_can_edit    = true;                  // Can edit, save or delete object(s)
+    public $_can_create  = true;                  // Can create new object
     public $_can_search  = true;                  // Display search box
     public $list_options = true;                  // Show display options
     public $textdomain   = 'object-list-example'; // Labguage text domain

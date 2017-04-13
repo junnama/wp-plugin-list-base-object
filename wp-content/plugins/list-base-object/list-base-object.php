@@ -81,7 +81,7 @@ class ListBaseObjectInit {
                 $permission, $_table . '_list_objects', array( $this, 'class_render_list_page' ),
                 $icon_url, $objectTable->menu_order );
         }
-        if ( $objectTable->_can_edit ) {
+        if ( $objectTable->_can_create ) {
             add_submenu_page( $_table . '_list_objects',  $objectTable->_translate( 'Add New %s', $singular ),
             $objectTable->_translate( 'Add New %s', $singular ), $permission, 
                 $_table . '_list_objects_submenu', array( $this, 'class_render_new_page' ) );
@@ -140,10 +140,12 @@ class ListBaseObjectInit {
             }
             $message_block = '<div id="message" class="notice notice-' . $notice_class . ' is-dismissible"><p>' . $message . '</p></div>';
         }
-        if ( $objectTable->_can_edit ) {
-            $save_label = $objectTable->_translate( 'Save' );
+        if ( $objectTable->_can_create ) {
             $create_label = $objectTable->_translate( 'Add New' );
             $create_button = sprintf( '<a class="page-title-action" href="?page=%s&action=%s">%s</a>', $_page, 'edit', $create_label );
+        }
+        if ( $objectTable->_can_edit ) {
+            $save_label = $objectTable->_translate( 'Save' );
             $_edit_screen = $objectTable->_edit_screen;
             if ( $obj = $objectTable->current_object ) {
                 $id = $obj->$_primary;
@@ -179,7 +181,7 @@ EOT;
         }
         $months_dropdown = '';
         if ( ( $objectTable->month_filter ) && ( $objectTable->date_col ) ) {
-            $months_dropdown = $this->display_months_dropdown( $objectTable, $objectTable->date_col );
+            $months_dropdown = $this->display_months_dropdown( $objectTable );
             $objectTable->custom_filter = $objectTable->custom_filter . $months_dropdown;
             $has_option = true;
             //$extra_tablenav .= $months_dropdown;
@@ -267,10 +269,11 @@ EOT;
 <?php echo $insert_footer ?>
         <?php
     }
-    function display_months_dropdown( $objectTable, $date_col ) {
+    function display_months_dropdown( $objectTable ) {
         global $wpdb;
         $date_col = $wpdb->escape( $date_col );
         $table = $wpdb->prefix . $objectTable->_table;
+        $date_col = $objectTable->date_col;
         $sql = "
             SELECT DISTINCT YEAR( ${date_col} ) AS year, MONTH( ${date_col} ) AS month
             FROM $table
@@ -298,7 +301,7 @@ EOT;
             $dd .= sprintf( "            <option %s value='%s'>%s</option>\n",
                 selected( $m, $year . $month, false ),
                 esc_attr( $arc_row->year . $month ),
-                sprintf( __( '%1$s %2$d' ), $wp_locale->get_month( $month ), $year )
+                $objectTable->_translate( '%1$s %2$d', array( $wp_locale->get_month( $month ), $year ) )
             );
         }
         $dd .= "            </select>\n";
@@ -406,6 +409,7 @@ class ListBaseObject extends WP_List_Table {
     public $_display        = false;
     public $_can_search     = false;
     public $_can_edit       = false;
+    public $_can_create     = false;
     public $list_options    = false;
     protected $_can_upgrade = false;
     public $menu_type       = 'object';
@@ -846,14 +850,14 @@ EOT;
             }
         } else if( 'search' === $this->current_action() ) {
             if (! $this->_can_search ) {
-                wp_die( __( 'Invalid Request.', $this->textdomain ) );
+                wp_die( $this->_translate( 'Invalid Request.' ) );
             }
             $q = $_REQUEST[ 's' ];
             $this->search_objects( $q );
         } else if ( ( 'edit' === $this->current_action() ) 
                 || ( 'save' === $this->current_action() ) ) {
             if (! $this->_can_edit ) {
-                wp_die( __( 'Invalid Request.', $this->textdomain ) );
+                wp_die( $this->_translate( 'Invalid Request.' ) );
             }
             $this->_edit_screen = true;
             $id = $_REQUEST[ $this->_table ];
@@ -926,6 +930,9 @@ EOT;
                         $sql = "UPDATE ${table} SET ${formats} WHERE ${_primary}=%d";
                         $values[] = $id;
                     } else {
+                        if (! $this->_can_create ) {
+                            wp_die( $this->_translate( 'Invalid Request.' ) );
+                        }
                         $sql = "INSERT INTO ${table} (${fields}) VALUES (${formats})";
                     }
                     $sql = $wpdb->prepare( $sql, $values );
