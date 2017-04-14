@@ -123,3 +123,6 @@ msgstr "&#8220;%s&#8221;の検索結果"
 
 msgid "Filter"
 msgstr "絞り込み検索"
+
+msgid "Please check the required items."
+msgstr "必須項目の入力を確認してください。"

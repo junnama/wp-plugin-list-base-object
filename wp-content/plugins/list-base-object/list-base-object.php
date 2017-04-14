@@ -699,18 +699,23 @@ EOT;
         return $msg;
     }
     function build_control( $name, $value, $label, $type ) {
+        $columns = $this->column_defs();
+        $required = '';
+        if ( isset( $columns[ $name ][ 'required' ] ) && $columns[ $name ][ 'required' ] ) {
+            $required = 'required';
+            $label .= ' *';
+        }
         $html;
         if ( $type == 'string' ) {
             if ( $name == $this->_title ) {
-                $html = sprintf( '<input placeholder="%s" type="text" id="title" name="%s" value="%s">', $label, $name, $value );
+                $html = sprintf( '<input placeholder="%s" type="text" id="title" name="%s" value="%s" class="%s">', $label, $name, $value, $required );
                 $html = sprintf( '<div id="titlediv" style="margin-top:10px;margin-bottom:10px"><div id="titlediv">%s</div></div>', $html );
             } else {
-                $html = sprintf( '<input id="%s" class="regular-text" type="text" name="%s" value="%s">', $name, $name, $value );
+                $html = sprintf( '<input id="%s" class="regular-text %s" type="text" name="%s" value="%s">', $name, $required, $name, $value );
             }
         } else if ( $type == 'select' ) {
-            $items = $this->column_defs();
-            $items = $items[ $name ][ 'items' ];
-            $html = sprintf( '<select id="%s" name="%s">', $name, $name );
+            $items = $columns[ $name ][ 'items' ];
+            $html = sprintf( '<select id="%s" name="%s" class="%s">', $name, $name, $required );
             foreach ( $items as $var => $key ) {
                 $key = $this->_translate( $key );
                 $selected = ' ';
@@ -721,18 +726,21 @@ EOT;
             }
             $html .= '</select>';
         } else if ( $type == 'text' ) {
-            $html = sprintf( '<textarea rows="5" class="large-text code" name="%s">%s</textarea>', $name, $value );
+            $html = sprintf( '<textarea rows="5" class="large-text code %s" name="%s">%s</textarea>', $required, $name, $value );
         } else if ( $type == 'datetime' ) {
             // TODO:: Date Picker
-            $html = sprintf( '<input id="%s" class="regular-text" type="text" name="%s" value="%s">', $name, $name, $value );
+            $html = sprintf( '<input id="%s" class="regular-text %s" type="text" name="%s" value="%s">', $name, $required, $name, $value );
         } else if ( $type == 'small-text' ) {
-            $html = sprintf( '<input id="%s" class="small-text" type="text" name="%s" value="%s">', $name, $name, $value );
+            $html = sprintf( '<input id="%s" class="small-text %s" type="text" name="%s" value="%s">', $name, $required, $name, $value );
         } else if ( $type == 'object' ) {
             $html = $value;
         } else if ( $type == 'boolean' ) {
             $checked = ' ';
             if ( $value ) $checked = ' checked ';
-            $html = sprintf( '<input%sid="%s" type="checkbox" name="%s" value="1">', $checked, $name, $name );
+            $html = sprintf( '<input%sid="%s" type="checkbox" name="%s" value="1" class="%s">', $checked, $name, $name, $required );
+        }
+        if ( isset( $columns[ $name ][ 'readonly' ] ) && $columns[ $name ][ 'readonly' ] ) {
+            $html = sprintf( $value . '<input id="%s" type="hidden" name="%s" value="%s">', $name, $name, $value );
         }
         if ( $name != $this->_title ) {
             $html = <<< EOT
@@ -1202,10 +1210,34 @@ EOT;
       */
     }
     function _insert_footer_default() {
+        $column_defs = $this->column_defs();
         if ( $this->_edit_screen ) {
+            $required = false;
+            foreach ( $column_defs as $key => $params ) {
+                if ( isset( $params[ 'required' ] ) && $params[ 'required' ] ) {
+                    $required = true;
+                    break;
+                }
+            }
+            if ( $required ) {
+                $message = $this->_translate( 'Please check the required items.' );
+                $jq = <<< EOT
+            <script>
+                jQuery('#submit').on('click',function(){
+                    var required_fields = jQuery( '.required' );
+                    for ( var i = required_fields.length; i--; ) {
+                        if ( required_fields[i].value == '' ) {
+                            alert( '$message' );
+                            return false;
+                        }
+                    }
+                });
+            </script>
+EOT;
+                return $jq;
+            }
             return;
         }
-        $column_defs = $this->column_defs();
         $jq = array();
         foreach ( $column_defs as $key => $params ) {
             if ( $key == $this->_primary ) {
