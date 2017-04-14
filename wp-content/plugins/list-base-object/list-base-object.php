@@ -3,15 +3,17 @@
 Plugin Name: List Base Object
 Plugin URI: https://alfasado.net/
 Description: Manage custom table.
-Version: 0.1
+Version: 0.2
 Author: Alfasado Inc.
 Author URI: https://alfasado.net/
 License: GPL2
 */
 // add_filter( 'pre_update_option_active_plugins', 'high_priority_active_plugins' );
 /* TODO
-    HTML Template
-    Import from CSV or other format
+     HTML to Template
+     Archive and Individual Page
+     Import from CSV or other format
+     Plugin Name( Consider Priority )
 */
 if(! class_exists( 'WP_List_Table' )){
     require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
@@ -56,8 +58,13 @@ class ListBaseObjectInit {
         $singular = $objectTable->_translate( $objectTable->singular );
         $plural = $objectTable->_translate( $objectTable->plural );
         $action = $objectTable->current_action();
+        if (! $action ) {
+            if ( $_REQUEST[ 'page' ] == $_table . '_list_objects_submenu' ) {
+                $action = 'edit';
+            }
+        }
         if ( $action && ( ( $action == 'edit' ) || ( $action == 'save' ) ) ) {
-            if (! $_REQUEST[ $_table ] ) {
+            if ( (! $_REQUEST[ $_table ] ) && ( $objectTable->current_action() != 'save' ) ) {
                 $page_title = $objectTable->_translate( 'Add New %s', $singular );
             } else {
                 $page_title = $objectTable->_translate( 'Edit %s', $singular );
@@ -89,7 +96,9 @@ class ListBaseObjectInit {
     }
     function class_render_new_page() {
         $objectTable = $this->objectTable;
-        $_REQUEST[ 'action' ] = 'edit';
+        if ( $_SERVER[ 'REQUEST_METHOD' ] != 'POST' ){
+            $_REQUEST[ 'action' ] = 'edit';
+        }
         $this->class_render_list_page();
     }
     function class_render_list_page() {
@@ -142,7 +151,7 @@ class ListBaseObjectInit {
         }
         if ( $objectTable->_can_create ) {
             $create_label = $objectTable->_translate( 'Add New' );
-            $create_button = sprintf( '<a class="page-title-action" href="?page=%s&action=%s">%s</a>', $_page, 'edit', $create_label );
+            $create_button = sprintf( '<a class="page-title-action" href="?page=%s">%s</a>', $_page  . '_submenu', $create_label );
         }
         if ( $objectTable->_can_edit ) {
             $save_label = $objectTable->_translate( 'Save' );
@@ -232,7 +241,7 @@ EOT;
                 jQuery('#custom-filters').offset({ top: posts_filter.top + 42 });
             }
             if(jQuery('#bulk-action-selector-top').length){
-                jQuery('#doaction').on('click',function(){
+                jQuery('.action').on('click',function(){
                     if ( jQuery('#bulk-action-selector-top').val() == -1 ) {
                         alert( '<?php echo $no_act ?>' );
                         return false;
@@ -274,10 +283,19 @@ EOT;
         $date_col = $wpdb->escape( $date_col );
         $table = $wpdb->prefix . $objectTable->_table;
         $date_col = $objectTable->date_col;
+        /*
         $sql = "
             SELECT DISTINCT YEAR( ${date_col} ) AS year, MONTH( ${date_col} ) AS month
             FROM $table
             ORDER BY ${date_col} DESC";
+        */
+        $cond = "YEAR( ${date_col} ) AS year, MONTH( ${date_col} ) AS month";
+        $sql = $objectTable->query_params( $table, null, array(
+                                           'condition'  => $cond,
+                                           'columns'    => '',
+                                           'sort_by'    => $date_col,
+                                           'sort_order' => 'desc' ),
+                                           'SELECT DISTINCT' );
         $months = $wpdb->get_results( $sql );
         $month_count = count( $months );
         if ( !$month_count || ( 1 == $month_count && 0 == $months[0]->month ) )
@@ -547,7 +565,7 @@ PRIMARY KEY (${primary_key})${indexed}
 ) ${charset_collate};";
         return $sql;
     }
-    function column_default( $item, $column_name, $no_trim = false ) {
+    function column_default( $item, $column_name, $edit_screen = false ) {
         if ( $column_name == 'title' ) {
             $column_name = $this->_title;
         }
@@ -557,24 +575,28 @@ PRIMARY KEY (${primary_key})${indexed}
         if ( $args[ 'type' ] == 'object' ) {
             global $wpdb;
             $table = $wpdb->prefix . $args[ 'table' ];
-            $value = $wpdb->escape( $value );
             $key = 'ID';
             if ( isset( $args[ 'key' ] ) ) {
                 $key = $args[ 'key' ];
             }
             $col = $args[ 'obj_col' ];
-            $sql = "SELECT $col FROM $table WHERE ${key}=${value} LIMIT 1";
+            // $value = $wpdb->escape( $value );
+            // $sql = "SELECT $col FROM $table WHERE ${key}=${value} LIMIT 1";
+            $sql = $this->query_params( $table,
+                                        array( $key => $value ),
+                                        array( 'limit' => 1, 'columns' => $col ) );
             $row = $wpdb->get_results( $sql );
             // $this->last_query = $sql;
             if ( is_array( $row ) ) {
                 $row = $row[ 0 ];
                 $value = $row->$col;
             }
-        } else if ( $args[ 'type' ] == 'select' ) {
-            $value = $args[ 'items' ][ $value ];
-            $value = $this->_translate( $value );
         }
-        if (! $no_trim ) {
+        if (! $edit_screen ) {
+            if ( isset( $args[ 'items' ] ) ) {
+                $value = $args[ 'items' ][ $value ];
+                $value = $this->_translate( $value );
+            }
             $value = $this->trim_to( $value );
         }
         return esc_html( $value );
@@ -680,36 +702,37 @@ EOT;
         $html;
         if ( $type == 'string' ) {
             if ( $name == $this->_title ) {
-                $html = '<input placeholder="' . $label.  '" type="text" id="title" name="' . $name .'" value="' . $value . '">';
-                $html = "<div id=\"titlediv\" style=\"margin-top:10px;margin-bottom:10px\"><div id=\"titlediv\">${html}</div></div>";
+                $html = sprintf( '<input placeholder="%s" type="text" id="title" name="%s" value="%s">', $label, $name, $value );
+                $html = sprintf( '<div id="titlediv" style="margin-top:10px;margin-bottom:10px"><div id="titlediv">%s</div></div>', $html );
             } else {
-                $html = '<input id="' . $name . '" class="regular-text" type="text" name="' . $name .'" value="' . $value . '">';
+                $html = sprintf( '<input id="%s" class="regular-text" type="text" name="%s" value="%s">', $name, $name, $value );
             }
         } else if ( $type == 'select' ) {
             $items = $this->column_defs();
             $items = $items[ $name ][ 'items' ];
-            $html = '<select id="' . $name . '" name="' . $name .'">';
+            $html = sprintf( '<select id="%s" name="%s">', $name, $name );
             foreach ( $items as $var => $key ) {
                 $key = $this->_translate( $key );
                 $selected = ' ';
-                if ( $value == $key ) {
+                if ( $value == $var ) {
                     $selected = ' selected ';
                 }
-                $html .= '<option' . $selected . 'value="' . $var . '">' . $key .  '</option>';
+                $html .= sprintf( '<option%svalue="%s">%s</option>', $selected, $var, $key );
             }
             $html .= '</select>';
         } else if ( $type == 'text' ) {
-            $html = '<textarea rows="5" class="large-text code" name="' . $name .'">' . $value . '</textarea>';
+            $html = sprintf( '<textarea rows="5" class="large-text code" name="%s">%s</textarea>', $name, $value );
         } else if ( $type == 'datetime' ) {
-            $html = '<input id="' . $name . '" class="regular-text" type="text" name="' . $name .'" value="' . $value . '">';
+            // TODO:: Date Picker
+            $html = sprintf( '<input id="%s" class="regular-text" type="text" name="%s" value="%s">', $name, $name, $value );
         } else if ( $type == 'small-text' ) {
-            $html = '<input id="' . $name . '" class="small-text" type="text" name="' . $name .'" value="' . $value . '">';
+            $html = sprintf( '<input id="%s" class="small-text" type="text" name="%s" value="%s">', $name, $name, $value );
         } else if ( $type == 'object' ) {
             $html = $value;
         } else if ( $type == 'boolean' ) {
             $checked = ' ';
             if ( $value ) $checked = ' checked ';
-            $html = '<input' . $checked . 'id="' . $name . '" type="checkbox" name="' . $name .'" value="1">';
+            $html = sprintf( '<input%sid="%s" type="checkbox" name="%s" value="1">', $checked, $name, $name );
         }
         if ( $name != $this->_title ) {
             $html = <<< EOT
@@ -852,10 +875,15 @@ EOT;
                 }
             }
             if ( count( $_ids ) ) {
+                $_sql = $this->query_params( $table, array( $_primary => array( 'IN' => $_ids ) ) );
+                $rows = $wpdb->get_results( $_sql );
+                /*
                 $_ids = implode( ',', $_ids );
-                $_sql = "SELECT * FROM ${table} WHERE ${_primary} IN ( ${_ids} )";
+                // $_sql = "SELECT * FROM ${table} WHERE ${_primary} IN ( ${_ids} )";
                 $rows = $wpdb->get_results( $_sql );
                 $sql = "DELETE FROM ${table} WHERE ${_primary} IN ( ${_ids} )";
+                */
+                $sql = $this->query_params( $table, array( $_primary => array( 'IN' => $_ids ) ), array(), 'DELETE' );
                 $message = $this->_query( $sql );
                 $this->last_query = $sql;
                 $params = array( 'query'    => $sql,
@@ -949,13 +977,22 @@ EOT;
                     $formats = implode( ', ', $formats );
                     $fields = implode( ', ', $fields );
                     if ( $id ) {
-                        $sql = "UPDATE ${table} SET ${formats} WHERE ${_primary}=%d";
-                        $values[] = $id;
+                        // $sql = "UPDATE ${table} SET ${formats} WHERE ${_primary}=%d";
+                        // $values[] = $id;
+                        $id = (int) $id;
+                        $sql = $this->query_params( $table,
+                                                    array( $_primary => $id ),
+                                                    array( 'extra' => "SET ${formats}" ),
+                                                   'UPDATE' );
                     } else {
                         if (! $this->_can_create ) {
                             wp_die( $this->_translate( 'Invalid Request.' ) );
                         }
-                        $sql = "INSERT INTO ${table} (${fields}) VALUES (${formats})";
+                        // $sql = "INSERT INTO ${table} (${fields}) VALUES (${formats})";
+                        $sql = $this->query_params( $table,
+                                                    array(),
+                                                    array( 'extra' => "(${fields}) VALUES (${formats})" ),
+                                                   'INSERT INTO' );
                     }
                     $sql = $wpdb->prepare( $sql, $values );
                     $message = $this->_query( $sql );
@@ -978,8 +1015,9 @@ EOT;
             if ( $id ) {
                 $id = (int) $id;
                 $col = $this->_primary;
-                $sql = "SELECT * FROM ${table} WHERE $col=%d";
-                $sql = $wpdb->prepare( $sql, $id );
+                // $sql = "SELECT * FROM ${table} WHERE $col=%d";
+                // $sql = $wpdb->prepare( $sql, $id );
+                $sql = $this->query_params( $table, array( $col => $id ), array( 'limit' => 1 ) );
                 $row = $wpdb->get_results( $sql );
                 if ( is_array( $row ) ) {
                     $this->current_object = $row;
@@ -1119,14 +1157,16 @@ EOT;
             $offsetLimit .= " OFFSET $paged ";
         }
         $teble = $wpdb->prefix . $this->_table;
-        $sql = "SELECT COUNT(*) FROM $teble ${whereOrderBy}";
+        // $sql = "SELECT COUNT(*) FROM $teble ${whereOrderBy}";
+        $sql = $this->query_params( $teble, $whereOrderBy, array( 'columns' => '(*)' ), 'SELECT COUNT' );
         $count = $wpdb->get_results( $sql );
         $counts = ( array ) $count[ 0 ];
         foreach ( $counts as $key => $value ) {
             $count = $value;
         }
         $whereOrderBy .= $this->order_by();
-        $sql = "SELECT * FROM $teble ${whereOrderBy} ${offsetLimit}";
+        // $sql = "SELECT * FROM $teble ${whereOrderBy} ${offsetLimit}";
+        $sql = $this->query_params( $teble, $whereOrderBy, $offsetLimit );
         $rows = $wpdb->get_results( $sql );
         $this->last_query = $sql;
         $params = array( 'query'    => $sql,
@@ -1193,5 +1233,119 @@ EOT;
     }
     function _debug( $str ) {
         $this->_page_message = $this->_page_message . "<pre>${str}</pre>";
+    }
+    function query_params( $from, $params, $args = null, $q = 'SELECT' ) {
+        global $wpdb;
+        /*
+        $params = array(
+            'email'  => array( 'like' => '%alfasado%' ),
+            'status' => 1,
+        );
+        $args = array(
+            'sort_by'    => 'name',
+            'sort_order' => 'desc',
+            'limit'      => 10,
+            'and_or'     => 'and', // option
+            'columns'    => '*',   // option
+        );
+        $sql = query_params( 'wp_contact_info', $params, $args );
+        */
+        $q = strtoupper( $q );
+        if (isset($args[ 'and_or' ])) $and_or = $args[ 'and_or' ];
+        $columns = '';
+        if ( strpos( $q, 'SELECT' ) !== false ) {
+            if (isset($args[ 'columns' ])) {
+                $columns = $args[ 'columns' ];
+            } else {
+                $columns = '*';
+            }
+        }
+        if (! $and_or ) $and_or = 'AND';
+        $and_or = strtoupper( $and_or );
+        if (($and_or != 'AND') && ($and_or != 'OR')) $and_or = 'AND';
+        $where = '';
+        if ( is_array( $params ) ) {
+            foreach ( $params as $key => $value ) {
+                $key = $wpdb->escape( $key );
+                $query = '';
+                if ( is_string( $value ) ) {
+                    $value = $wpdb->escape( $value );
+                    $query = "${key} = '${value}'";
+                } else if ( is_numeric( $value ) ) {
+                    $query = "${key} = ${value}";
+                } else if ( is_array( $value ) ) {
+                    $query_arr = array();
+                    foreach ( $value as $op => $v ) {
+                        if ( preg_match('/(=|>|<|<=|>|LIKE|IN|NOT\sLIKE)/i', $op, $matchs ) ) {
+                            $op = strtoupper( $matchs[ 1 ] );
+                            if ( is_string( $v ) ) {
+                                $v = $wpdb->escape( $v );
+                                $query_arr[] = "${key} ${op} '${v}'";
+                            } else if ( is_numeric( $v ) ) {
+                                $query_arr[] = "${key} ${op} ${v}";
+                            } else if ( is_array( $v ) ) {
+                                if ( $op == 'IN' ) {
+                                    $v = implode( ',', $v );
+                                    $in_values = array();
+                                    foreach ( $v as $item ) {
+                                        if ( is_string( $item ) ) {
+                                            $in_values[] = $wpdb->escape( $item );
+                                        } else if ( is_numeric( $item ) ) {
+                                            $in_values[] = $item;
+                                        }
+                                    }
+                                    $query_arr[] = "${key} ${op} (${v})";
+                                }
+                            }
+                        }
+                    }
+                    $query = implode( " ${and_or} ", $query_arr );
+                } else {
+                    continue;
+                }
+                $query = " ( $query ) ";
+                if ( $where ) $where .= " ${and_or} ";
+                $where .= $query;
+            }
+        } else if ( is_string( $params ) ) {
+            $params = preg_replace( '/^\s*WHERE/i', '', $params );
+            $where = $params;
+        }
+        if ( $columns != '(*)' ) {
+            $columns = " ${columns}";
+        }
+        $sql = "${q}${columns}";
+        if (isset($args[ 'condition' ])) $sql .= ' ' . $args[ 'condition' ];
+        if ( ( $q == 'UPDATE' ) || ( preg_match( '/INSERT/', $q, $matches ) ) ) {
+            $sql .= " ${from}";
+        } else {
+            $sql .= " FROM ${from}";
+        }
+        if (isset($args[ 'extra' ])) $sql .= ' ' . $args[ 'extra' ];
+        if ( $where ) $sql .= " WHERE ${where}";
+        if ( isset( $args ) ) {
+            if (is_string( $args ) ) {
+                $args = $wpdb->escape( $args );
+                $sql .= " ${args}";
+            } else if ( is_array( $args ) ) {
+                if (isset($args[ 'sort_by' ])) $sort_by = $args[ 'sort_by' ];
+                if (isset($args[ 'sort_order' ])) $sort_order = $args[ 'sort_order' ];
+                if ( $sort_by && (! $sort_order ) ) {
+                    $sort_order = 'ASC';
+                }
+                if ( $sort_order ) $sort_order = strtoupper( $sort_order );
+                if ( $sort_by ) {
+                    $sort_by = $wpdb->escape( $sort_by );
+                    if (($sort_order != 'ASC') && ($sort_order != 'DESC')) $sort_order = 'ASC';
+                    $sql .= " ORDER BY $sort_by $sort_order";
+                }
+                if (isset($args[ 'limit' ])) $limit = $args[ 'limit' ];
+                if ( $limit ) {
+                    $limit = (int) $limit;
+                    $sql .= " LIMIT ${limit}";
+                }
+            }
+        }
+        return $sql;
     }
 }
